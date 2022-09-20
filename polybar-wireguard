@@ -6,11 +6,11 @@
 # https://github.com/polybar/polybar/wiki/Formatting#format-tags-inside-polybar-config
 green=#55aa55
 
-configs_path="/PATH/TO/CONF/FILES"
-connected_interface=$(networkctl | grep -P "\d+ .* wireguard routable" -o | cut -d" " -f2)
+configs_path="/etc/wireguard"
+connected_interface=$(nmcli --terse -f name,type,active connection | grep wireguard:yes | cut -d":" -f1)
 
 connect() {
-    selected_config=$(ls $configs_path/*.conf | xargs basename -a -s .conf | dmenu)
+    selected_config=$(ls $configs_path/ | xargs basename -a -s .conf | rofi -dmenu)
     [[ $selected_config ]] && sudo wg-quick up "$configs_path"/"$selected_config".conf
 }
 
@@ -18,7 +18,7 @@ disconnect() {
     # Normally we should have a single connected interface but technically
     # there's nothing stopping us from having multiple active intgerfaces so
     # let's do this in a loop:
-    for connected_config in $(networkctl | grep -P "\d+ .* wireguard routable" -o | cut -d" " -f2)
+    for connected_config in $(nmcli --terse -f name,type,active connection | grep wireguard:yes | cut -d":" -f1)
     do
         sudo wg-quick down $configs_path/"$connected_config".conf
     done
@@ -28,6 +28,16 @@ toggle() {
     if [[ $connected_interface ]]
     then
         disconnect
+    else
+        connect
+    fi
+}
+
+change() {
+    if [[ $connected_interface ]]
+    then
+        disconnect
+	connect
     else
         connect
     fi
@@ -52,6 +62,9 @@ case "$1" in
     --toggle)
         toggle
         ;;
+    --change)
+	change
+	;;
     *)
         print
         ;;
